@@ -1,6 +1,7 @@
 from src.helper import load_pdf_file, text_split, download_hugging_face_embeddings
 from dotenv import load_dotenv
 from pinecone.grpc import PineconeGRPC as Pinecone
+from langchian.vectorstores import Pinecone 
 from pinecone import ServerlessSpec
 from langchain_pinecone import PineconeVectorStore
 import os
