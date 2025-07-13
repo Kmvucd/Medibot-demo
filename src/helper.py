@@ -17,6 +17,7 @@ def load_pdf_file(data):
 
     return documents
 
+
 #Split the data into smaller chunks
 def text_split(extracted_data):
     text_splitter = RecursiveCharacterTextSplitter(

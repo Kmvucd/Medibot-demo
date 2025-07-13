@@ -8,8 +8,10 @@ from langchain.chains import RetrievalQA
 #from langchain_openai import ChatOpenAI
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough
-from langchain_core.runnables import RunnableMap
+# from langchain_core.runnables import RunnablePassthrough
+# from langchain_core.runnables import RunnableMap
+from langchain.memory import ConversationBufferMemory
+from langchain.chains import ConversationalRetrievalChain
 from dotenv import load_dotenv
 from src.prompt import *
 import os
@@ -56,15 +58,31 @@ prompt = ChatPromptTemplate.from_messages(
 )
 
 
-question_answer_chain = create_stuff_documents_chain(llm=llm, prompt=prompt)
-# Compose RAG chain manually using LCEL style
-rag_chain = (
-    RunnableMap({
-        "context": lambda x: retriever.invoke(x["input"]),
-        "input": lambda x: x["input"]
-    })
-    | question_answer_chain
+# question_answer_chain = create_stuff_documents_chain(llm=llm, prompt=prompt)
+# # Compose RAG chain manually using LCEL style
+# rag_chain = (
+#     RunnableMap({
+#         "context": lambda x: retriever.invoke(x["input"]),
+#         "input": lambda x: x["input"]
+#     })
+#     | question_answer_chain
+# )
+
+
+# 1. Create memory object
+memory = ConversationBufferMemory(
+    memory_key="chat_history", 
+    return_messages=True
 )
+
+# 2. Create conversational chain with memory
+qa_chain = ConversationalRetrievalChain.from_llm(
+    llm=llm,
+    retriever=retriever,
+    memory=memory,
+    verbose=True  # Optional: helpful for debugging
+)
+
 
 
 
@@ -76,11 +94,11 @@ def index():
 @app.route("/get", methods=["GET", "POST"])
 def chat():
     msg = request.form["msg"]
-    input = msg
-    print(input)
-    response = rag_chain.invoke({"input": msg})
+    question = msg
+    print(question)
+    response = qa_chain.invoke({"question": msg})
     print("Response : ", response)
-    return str(response)
+    return str(response["answer"])
 
 
 if __name__ == '__main__':
