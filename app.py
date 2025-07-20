@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify, request, session
+from flask import Flask, render_template, jsonify, request, session, redirect, url_for
 from src.helper import download_hugging_face_embeddings
 from langchain_pinecone import PineconeVectorStore
 #from langchain_openai import OpenAI
@@ -13,28 +13,34 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
 from langchain.schema import messages_from_dict, messages_to_dict
+from langchain.agents import load_tools, initialize_agent, AgentType
 from dotenv import load_dotenv
 from src.prompt import *
 import os
+
+
 
 
 app = Flask(__name__)
 
 load_dotenv()
 
-api_key = os.environ.get('PINECONE_API_KEY')
-groq_api_key= os.environ.get('GROQ_API_KEY')
+os.environ["LANGCHAIN_API_KEY"] = os.getenv('LANGCHAIN_API_KEY')
+os.environ["LANGSMITH_TRACING_V2"] = "true"
 
-secret_key= os.environ.get('SECRET_KEY', "68150090fed0c03f25e726f01c80b7887afd93537357374e122475341eb42900")
-app.secret_key = secret_key #Tells Flask the secret key to use for session management. 
-
-#openai_api_key = os.environ.get('OPENAI_API_KEY')
-
-os.environ["PINECONE_API_KEY"] = api_key
-os.environ["GROQ_API_KEY"] = groq_api_key
+os.environ["SERPAPI_API_KEY"] = os.getenv('SERPAPI_API_KEY')
 
 
-#os.environ["OPENAI_API_KEY"] = openai_api_key
+# secret_key= os.environ.get('SECRET_KEY', "68150090fed0c03f25e726f01c80b7887afd93537357374e122475341eb42900")
+# app.secret_key = secret_key #Tells Flask the secret key to use for session management. 
+
+#openai_api_key = os.getenv('OPENAI_API_KEY')
+
+os.environ["PINECONE_API_KEY"] =  os.getenv('PINECONE_API_KEY')
+os.environ["GROQ_API_KEY"] =  os.getenv('GROQ_API_KEY')
+
+
+#os.environ["OPENAI_API_KEY"] = os.getenv('OPENAI_API_KEY')
 
 # Load the PDF files, split the text, and download embeddings
 embeddings = download_hugging_face_embeddings()
@@ -54,41 +60,35 @@ retriever = docsearch.as_retriever(search_type="similarity",search_kwargs={"k": 
 # Create a question-answering chain using the OpenAI model and the retriever
 #llm = OpenAI(temperature=0.4, max_tokens=500)
 
-llm = ChatGroq(temperature=0.7, model_name="llama3-70b-8192")
+llm = ChatGroq(temperature=0.3, model_name="llama3-70b-8192")
 prompt = ChatPromptTemplate.from_messages(
     [
         ("system", system_prompt),
         ("human", "{input}"),
     ]
 )
-
-
-# question_answer_chain = create_stuff_documents_chain(llm=llm, prompt=prompt)
-# # Compose RAG chain manually using LCEL style
-# rag_chain = (
-#     RunnableMap({
-#         "context": lambda x: retriever.invoke(x["input"]),
-#         "input": lambda x: x["input"]
-#     })
-#     | question_answer_chain
-# )
-
-# Create a memory dictionary for each session
-user_memories = {}  
-
-# 1. Create memory object
-memory = ConversationBufferMemory(
-    memory_key="chat_history", 
-    return_messages=True
+tools = load_tools(["serpapi"], llm=llm)
+agent = initialize_agent(
+    tools=tools,
+    llm=llm,
+    agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+    verbose=True,  # Optional: helpful for debugging
 )
 
-# 2. Create conversational chain with memory
-qa_chain = ConversationalRetrievalChain.from_llm(
-    llm=llm,
-    retriever=retriever,
-    memory=memory,
-    verbose=True  # Optional: helpful for debugging
-) 
+
+# # Create a memory dictionary for each session
+# user_memories = {}  
+
+# # 1. Create memory object
+# memory = ConversationBufferMemory()
+
+# # 2. Create conversational chain with memory
+# qa_chain = ConversationalRetrievalChain.from_llm(
+#     llm=llm,
+#     retriever=retriever,
+#     memory=memory,
+#     verbose=True  # Optional: helpful for debugging
+# ) 
 
 
 
@@ -97,15 +97,32 @@ qa_chain = ConversationalRetrievalChain.from_llm(
 def index():
     return render_template('chat.html')
 
-
-# @app.route("/get", methods=["GET", "POST"])
+# @app.route("/get", methods=["POST"])
 # def chat():
 #     msg = request.form["msg"]
-#     question = msg
-#     print(question)
+#     print("User input:", msg)
+
+#     # Step 1: Attempt response from the PDF/book
 #     response = qa_chain.invoke({"question": msg})
-#     print("Response : ", response)
-#     return str(response["answer"])
+#     #response = qa_chain.run(msg)
+#     raw_answer = response.get("answer", "").strip().lower()
+
+#     # Step 2: If answer is missing or vague, fallback to SerpAPI agent
+   
+   
+# #    if not raw_answer or 
+#     if "i don't know" in raw_answer:
+#         print("Falling back to SerpAPI agent...")
+#         agent_response = agent.run(msg)
+#         final_answer = (
+#             "Note: The following answer is based on external medical information retrieved via SerpAPI.\n"
+#             f"{agent_response}"
+#         )
+#     else:
+#         print("Answer from book context:", raw_answer)
+#         final_answer = response["answer"]
+
+#     return str(final_answer)
 
 @app.route("/get", methods=["POST"])
 def chat():
@@ -113,21 +130,17 @@ def chat():
     print("User input:", msg)
 
     # Load previous chat history from session
-    raw_history = session.get("chat_history", [])
-    messages = messages_from_dict(raw_history)
+    # raw_history = session.get("chat_history", [])
+    # messages = messages_from_dict(raw_history)
 
-    # Get session chat history
-    chat_history = session.get("chat_history", [])
-
-    # Rebuild memory with previous chat history
-    # memory = ConversationBufferMemory(return_messages=True)
-    # chat_history = memory.chat_memory.messages 
+    # Rebuild memory
     memory = ConversationBufferMemory(
-        memory_key="chat_history",
-        return_messages=True
+         memory_key="chat_history",
+         return_messages=True
     )
-    memory.chat_memory.messages = messages
-    # Rebuild chain with memory
+    # memory.chat_memory.messages = messages
+
+    # Rebuild RAG chain with memory
     qa_chain = ConversationalRetrievalChain.from_llm(
         llm=llm,
         retriever=retriever,
@@ -135,16 +148,37 @@ def chat():
         verbose=False
     )
 
-    # Invoke the chain
-    #response = qa_chain.invoke({"question": msg, "chat_history": chat_history})
-    
-    response = qa_chain.run(msg)  # Let LangChain manage chat_history
+    # response = qa_chain.run(msg) 
+
+    # return str(response)
 
 
-    # Save updated memory to session
-    session["chat_history"] = messages_to_dict(memory.chat_memory.messages)
+    try:
+        # Step 1: Try to get answer from book context
+        response = qa_chain.invoke({"question": msg})
 
-    return str(response)
+        if response.get("answer", "").lower().startswith("i don't know"):
+            raise ValueError("No good answer from book")
+
+        final_answer = response["answer"]
+
+    except Exception as e:
+        print("Fallback to agent due to:", str(e))
+        response = qa_chain.invoke({"question": msg})
+        final_answer = response["answer"]
+
+    #     # Step 2: Fall back to agent if no answer from book
+    #     agent_response = agent.run(msg)
+    #     final_answer = (
+    #         "Note: The following answer is based on external medical information retrieved via SerpAPI.\n"
+    #         f"{agent_response}"
+    #     )
+
+    # Save updated memory
+    # session["chat_history"] = messages_to_dict(memory.chat_memory.messages)
+
+    return str(final_answer)
+
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port= 8080, debug= True)
