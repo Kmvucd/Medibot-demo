@@ -1,133 +1,72 @@
-# End-to-end-Medical-chatbot-Gen-AI 
+# AI-Medical-LLM
 
-## Demo file
+## Project Overview:
 
+This project is a chatbot application built with Flask, Pinecone, HuggingFace embeddings, and Groq. The chatbot is designed to answer questions about medical topics by retrieving relevant information from a document database. The system integrates document embeddings and similarity search for fast and accurate responses, leveraging retrieval-augmented generation (RAG).
 
-# How to run?
-### STEPS:
+The key functionality of this application is to:
 
-Clone the repository
+Embed documents (medical content in this case).
 
-```bash
-Project repo: https://github.com/
-```
-### STEP 01- Create a conda environment after opening the repository
+Store the embeddings in Pinecone, a vector database.
 
-```bash
-conda create -n medibot python=3.10 -y
-```
+Use a Groq model for generating responses.
 
-```bash
-conda activate medibot
-```
+Provide a real-time chatbot interface using Flask.
 
+## Key Techniques and Tools Used:
 
-### STEP 02- install the requirements
-```bash
-pip install -r requirements.txt
-```
+Flask: A Python web framework used to create a simple web interface where users can interact with the chatbot.
 
-### Create a `.env` file in the root directory and add your Pinecone & openai credentials as follows:
+Pinecone: A vector database used to store document embeddings and enable fast similarity search for information retrieval.
 
-```ini
-PINECONE_API_KEY = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-OPENAI_API_KEY = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-```
+HuggingFace Embeddings: A pre-trained model used to convert documents into 384-dimensional embeddings that represent the semantic meaning of the content.
 
+Groq (ChatGroq): A powerful large language model (LLM) used to generate responses to user queries. It is used for retrieving and generating answers based on relevant documents.
 
-```bash
-# run the following command to store embeddings to pinecone
-python store_index.py
-```
+Langchain: An end-to-end framework for developing and deploying LLM-based applications. It is used to build the retrieval chain and manage prompt templates.
 
-```bash
-# Finally run the following command
-python app.py
-```
+## Steps Taken in the Project:
 
-Now,
-```bash
-open up localhost:
-```
+1. Environment Setup:
+Environment Variables: The project uses dotenv to load sensitive API keys, such as Pinecone API key and Groq API key, from environment variables. This ensures secure handling of credentials without hardcoding them into the source code.
 
+2. Loading Embeddings and Setting Up Pinecone:
+Embeddings: The download_hugging_face_embeddings function loads the pre-trained HuggingFace model (sentence-transformers/all-MiniLM-L6-v2) for generating embeddings.
 
-### Techstack Used:
+Pinecone Setup:
 
-- Python
-- LangChain
-- Flask
-- GPT
-- Pinecone
+The project uses PineconeVectorStore to load an existing Pinecone index named "medicalbot". This index stores the embeddings generated for the documents.
 
+The as_retriever method is used to set up the retrieval mechanism. The retriever searches for the top 3 most relevant documents based on similarity to the input query.
 
-# AWS-CICD-Deployment-with-Github-Actions
+3. Integrating Groq for Answer Generation:
+Groq Setup: The ChatGroq class is used to interact with the Groq model (Llama3 or Mixtral), which generates answers to queries based on the retrieved documents.
 
-## 1. Login to AWS console.
+Prompt Setup: The ChatPromptTemplate is used to format the conversation between the system and user. The system message likely contains some predefined context or instructions for the model.
 
-## 2. Create IAM user for deployment
+RAG Chain: The retrieval-augmented generation chain is set up using Langchain's create_retrieval_chain method. This chain first retrieves relevant documents and then generates a response using the Groq model based on those documents.
 
-	#with specific access
+4. Web Interface with Flask:
+Flask App: The Flask app provides a web interface for users to chat with the model.
 
-	1. EC2 access : It is virtual machine
+/get Route: This route receives the user’s query as input, uses the RAG chain to get relevant documents, and generates a response. The response is then returned as the chatbot's answer.
 
-	2. ECR: Elastic Container registry to save your docker image in aws
+/ Route: This route serves the chat interface (likely an HTML template for the front-end).
 
+5. Running the Application:
+The app is set to run on host="0.0.0.0" and port=8080, making it accessible on any IP address in a local network.
 
-	#Description: About the deployment
+## Challenges Faced and Overcome:
+Embedding and Vector Storage: One challenge was embedding the documents and managing them efficiently. Using Pinecone as a vector database allowed easy management of the embeddings and fast retrieval of relevant documents.
 
-	1. Build docker image of the source code
+Integrating Multiple APIs: Integrating Groq with Pinecone and Langchain required proper setup and handling of various dependencies. Using Langchain's structured framework for document retrieval and question answering simplified this integration.
 
-	2. Push your docker image to ECR
+Real-Time Interaction: Setting up a real-time interaction with Flask required handling multiple layers of functionality: receiving user input, querying Pinecone, and generating responses with Groq.
 
-	3. Launch Your EC2 
+## Results Achieved:
+Real-Time Chatbot: The chatbot can now process user queries in real-time, retrieve relevant documents from a database, and generate answers using the Groq model.
 
-	4. Pull Your image from ECR in EC2
+Efficient Document Search: By using Pinecone for similarity search, the system ensures that only the most relevant documents are used for generating answers, providing accurate and contextually appropriate responses.
 
-	5. Lauch your docker image in EC2
-
-	#Policy:
-
-	1. AmazonEC2ContainerRegistryFullAccess
-
-	2. AmazonEC2FullAccess
-
-	
-## 3. Create ECR repo to store/save docker image
-    - Save the URI: 074793790082.dkr.ecr.eu-north-1.amazonaws.com/medibot
-
-	
-## 4. Create EC2 machine (Ubuntu) 
-
-## 5. Open EC2 and Install docker in EC2 Machine:
-	
-	
-	#optinal
-
-	sudo apt-get update -y
-
-	sudo apt-get upgrade
-	
-	#required
-
-	curl -fsSL https://get.docker.com -o get-docker.sh
-
-	sudo sh get-docker.sh
-
-	sudo usermod -aG docker ubuntu
-
-	newgrp docker
-	
-# 6. Configure EC2 as self-hosted runner:
-    setting>actions>runner>new self hosted runner> choose os> then run command one by one
-
-
-# 7. Setup github secrets:
-
-   - AWS_ACCESS_KEY_ID
-   - AWS_SECRET_ACCESS_KEY
-   - AWS_DEFAULT_REGION
-   - ECR_REPO
-   - PINECONE_API_KEY
-   - OPENAI_API_KEY
-
-    
+Scalability: The use of Groq and Pinecone allows the system to scale with more documents and queries, making it suitable for large-scale AI applications like medical information retrieval.
