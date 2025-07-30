@@ -86,6 +86,10 @@ jobs:
       - name: Pull images
         run: |
           docker pull ${{ secrets.REGISTRY }}/${{ secrets.IMAGE_NAME }}:main
+
+      - name: Remove existing container if it exists
+        run: |
+          docker rm -f stapp || true
         
       - name: Run Docker Image to serve users
         run: |
