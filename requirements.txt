@@ -1,11 +1,28 @@
-sentence-transformers==2.2.2
-langchain>=0.2.0
+# Core LLM + LangChain packages
+langchain==0.1.17
+langchain-core==0.1.52
+langchain-community==0.0.37
+langchain-groq
+langchain-openai==0.1.7
+langchain-huggingface==0.0.3
+langchain-pinecone==0.0.3
+langchain-experimental
+google-search-results
+
+# Vector DB - Pinecone
+pinecone-client==3.0.0
+
+# Embeddings
+sentence-transformers==2.6.1
+transformers>=4.40.0,<5.0.0
+huggingface-hub>=0.16.4,<1.0
+
+# PDF parsing
+pypdf==3.17.4
+
+# Web + Env
 flask
-pypdf
 python-dotenv
-pinecone
-langchain-pinecone
-langchain_community
-langchain_groq
-langchain_experimental
--e .
+
+# -e .
+
