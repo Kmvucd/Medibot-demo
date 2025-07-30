@@ -8,4 +8,4 @@ RUN pip install -r requirements.txt
 
 EXPOSE 8501
 
-CMD ["python3", "app2.py"]
+CMD ["python3", "app.py"]
